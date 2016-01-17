@@ -7,27 +7,29 @@
 //
 
 #import "AppController.h"
-#include "includes/client.h"
+#import "IONPlayerControlView.h"
 
-static inline void check_error(int status)
-{
-    if (status < 0) {
-        printf("mpv API error: %s\n", mpv_error_string(status));
-        exit(1);
-    }
-}
+#include "includes/client.h"
+#include "includes/opengl_cb.h"
 
 @interface AppController()
+{
+    NSView * wrapper;
+}
 
 @property (assign) mpv_handle * mpv;
 @property (strong) dispatch_queue_t queue;
+
+@property (strong) IONPlayerControlView * controllerView;
+
+@property (copy) NSURL * mediaURL;
+
 
 @end
 
 @implementation AppController
 
-- (void) awakeFromNib{
-//    NSLog(@"%@", @"awake from nib");
+- (void) createPlayerView {
     NSString * filename = @"/Users/Kirk/Movies/Wanderers.mp4";
     self.queue = dispatch_queue_create("mpv", DISPATCH_QUEUE_SERIAL);
     dispatch_async(self.queue, ^{
@@ -38,7 +40,9 @@ static inline void check_error(int status)
             exit(1);
         }
         
-        int64_t wid = (intptr_t) self.playerView;
+//        int64_t wid = (intptr_t) self.playerView;
+        int64_t wid = (intptr_t) self->wrapper;
+        
         check_error(mpv_set_option(self.mpv, "wid", MPV_FORMAT_INT64, &wid));
         
         // Maybe set some options here, like default key bindings.
@@ -61,11 +65,58 @@ static inline void check_error(int status)
         // Load the indicated file
         const char *cmd[] = {"loadfile", [filename UTF8String], NULL};
         check_error(mpv_command(self.mpv, cmd));
+
+/*
+        [[self.playerController view] removeFromSuperview];
+        [self->wrapper addSubview:[self.playerController view] positioned:NSWindowAbove relativeTo:nil];
+        
+        CGSize wsize = [self.playerView bounds].size;
+        NSRect frame2 = NSMakeRect(0, wsize.height-80, wsize.width, 80);
+        [[self.playerController view] setFrame:frame2];*/
+
     });
-//    [[self.firstViewController view] removeFromSuperview];
-//    [self.playerView addSubview:[self.firstViewController view]];
-//    [[self.firstViewController view] setFrame:[self.playerView bounds]];
-    //self.secretMessage = [NSString stringWithFormat:@"I SAY: %@", @"YOU ARE AWESOME!"];
+}
+
+- (void) awakeFromNib{
+    NSRect frame = [[self.appWindow contentView] bounds];
+    self->wrapper = [[NSView alloc] initWithFrame:frame];
+    [self->wrapper setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
+//    [[self.appWindow contentView] addSubview:self.playerView];
+    [self.playerView addSubview:self->wrapper];
+//    [self->wrapper release];
+//    [self.playerView setFrame:frame];
+//    [self.playerView setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
+//    NSLog(@"%@", @"awake from nib");
+    [self createPlayerView];
+    
+    self.controllerView = [[IONPlayerControlView alloc] initWithFrame:NSMakeRect(0, 0, 440, 40)];
+
+    [self.playerView addSubview:self.controllerView positioned:NSWindowAbove relativeTo:nil];
+    [self.controllerView setAlphaValue:1];
+    
+    [self.playerView addConstraint:[NSLayoutConstraint constraintWithItem:self.controllerView
+                                                                attribute:NSLayoutAttributeCenterX
+                                                                relatedBy:NSLayoutRelationEqual
+                                                                   toItem:self.playerView
+                                                                attribute:NSLayoutAttributeCenterX
+                                                               multiplier:1.0
+                                                                 constant:0]];
+    [self.playerView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-(>=20)-[_controllerView(==440)]-(>=29)-|"
+                                                                            options:0
+                                                                            metrics:nil
+                                                                              views:NSDictionaryOfVariableBindings(_controllerView)]];
+    [self.playerView addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-(>=40)-[_controllerView(==40)]-40-|"
+                                                                            options:0
+                                                                            metrics:nil
+                                                                              views:NSDictionaryOfVariableBindings(_controllerView)]];
+    
+    [_controllerView.playPauseButton setTarget:self];
+    [_controllerView.playPauseButton setAction:@selector(playPauseToggle:)];
+    [_controllerView.playPauseButton setEnabled:NO];
+    
+    [_controllerView.timeSlider setTarget:self];
+    [_controllerView.timeSlider setAction:@selector(scrubberChanged:)];
+    [_controllerView.timeSlider setEnabled:NO];
 }
 
 - (void) handleEvent:(mpv_event *)event
@@ -111,23 +162,19 @@ static inline void check_error(int status)
     });
 }
 
-static void wakeup(void *context) {
-    AppController *ego = (__bridge AppController *) context;
-    [ego readEvents];
-}
-
 // Ostensibly, mpv's window would be hooked up to this.
 - (BOOL) windowShouldClose:(id)sender
 {
     return NO;
 }
 
-- (void) mpv_exec_command:(NSString*) cmd {
+- (void) ExecuteMPVCommand:(NSString*) cmd {
     if (self.mpv) {
         const char * args[] = {[cmd UTF8String], NULL};
         mpv_command(self.mpv, args);
     }
 }
+
 //
 //- (void) mpv_stop
 //{
@@ -149,6 +196,90 @@ static void wakeup(void *context) {
     NSLog(@"%@", @"YOU ARE AWESOME!");
 }
 
+
+
+- (IBAction)controlMenuAction:(id)sender {
+    NSMenuItem* item = (NSMenuItem *)sender;
+    switch ([item tag]) {
+        case kPlayTag: {
+            if(self.queue && self.mpv){
+                dispatch_async(self.queue, ^{
+                    if(strcmp(mpv_get_property_string(self.mpv,"pause"),"no")){
+                        mpv_set_property_string(self.mpv,"pause","no");
+                    }else{
+                        mpv_set_property_string(self.mpv,"pause","yes");
+                    }
+                });
+            }
+            
+//            if (self.mpv) {
+//                const char * args[] = {"pause", "yes",  NULL};
+//                mpv_command(self.mpv, args);
+//            }
+        }
+            break;
+        case kPauseTag: {
+//            if (self.mpv) {
+//                const char * args[] = {"pause", "yes",  NULL};
+//                mpv_command(self.mpv, args);
+//            }
+        }
+            break;
+        case kStopTag: {
+            [self ExecuteMPVCommand:@"stop"];
+        }
+            break;
+        default:
+            break;
+    }
+    [item tag];
+}
+
+- (IBAction)openFile:(id)sender {
+    NSOpenPanel * op = [NSOpenPanel openPanel];
+    [op runModal];
+    self.mediaURL = [op URLs][0];
+    // Load the indicated file
+    const char *cmd[] = {"loadfile", [[self.mediaURL absoluteString] UTF8String], NULL};
+    check_error(mpv_command(self.mpv, cmd));
+    
+}
+
+- (void)playPauseToggle:(id)sender
+{
+//    if ([self.player rate] != 1.f) {
+//        if (self.currentTime >= self.duration) {
+//            self.currentTime = 0.0f;
+//        }
+//        [self.player play];
+//    } else {
+//        [self.player pause];
+//    }
+    NSLog(@"play/pause");
+}
+
+
+- (void)scrubberChanged:(NSSlider *)sender
+{
+//    if ([self.player rate] >= 1.0f) {
+//        [self.player pause];
+//    }
+//    [self.player seekToTime:CMTimeMakeWithSeconds([sender doubleValue], NSEC_PER_SEC)];
+    NSLog(@"%f", [sender doubleValue]);
+}
+
+
+static inline void check_error(int status) {
+    if (status < 0) {
+        printf("mpv API error: %s\n", mpv_error_string(status));
+        exit(1);
+    }
+}
+
+static void wakeup(void *context) {
+    AppController *ego = (__bridge AppController *) context;
+    [ego readEvents];
+}
 
 
 @end

@@ -7,15 +7,21 @@
 //
 
 #import <Cocoa/Cocoa.h>
-#import "FirstViewController.h"
 
 @interface AppController : NSObject
 
+typedef NS_ENUM(NSInteger, tagControlMenuItem) {
+    kPlayTag = 10, kPauseTag, kStopTag
+};
+
+@property (weak) IBOutlet NSWindow *appWindow;
 @property (weak) IBOutlet NSView * playerView;
-@property (weak) IBOutlet FirstViewController *firstViewController;
 
 //@property (copy) NSString * secretMessage;
 
 - (IBAction)revealMessage:(id)sender;
+
+- (IBAction)controlMenuAction:(id)sender;
+- (IBAction)openFile:(id)sender;
 
 @end

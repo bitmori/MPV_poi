@@ -74,7 +74,7 @@
                             </menuItem>
                             <menuItem title="Open…" keyEquivalent="o" id="IAo-SY-fd9">
                                 <connections>
-                                    <action selector="openDocument:" target="-1" id="bVn-NM-KNZ"/>
+                                    <action selector="openFile:" target="urg-Rz-8O7" id="RRy-Fw-KmW"/>
                                 </connections>
                             </menuItem>
                             <menuItem title="Open Recent" id="tXI-mr-wws">
@@ -627,6 +627,31 @@
                         </items>
                     </menu>
                 </menuItem>
+                <menuItem title="Control" id="WQL-Dd-HbS">
+                    <modifierMask key="keyEquivalentModifierMask"/>
+                    <menu key="submenu" title="Control" id="7yX-GX-Efx">
+                        <items>
+                            <menuItem title="Play" tag="10" id="Tl3-UY-KcS">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="controlMenuAction:" target="urg-Rz-8O7" id="0w0-qj-FC9"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Pause" tag="11" id="v8x-z1-yt3">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="controlMenuAction:" target="urg-Rz-8O7" id="kzm-lS-z0G"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Stop" tag="12" id="uCa-oZ-6Xf">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <connections>
+                                    <action selector="controlMenuAction:" target="urg-Rz-8O7" id="zWl-73-Gwt"/>
+                                </connections>
+                            </menuItem>
+                        </items>
+                    </menu>
+                </menuItem>
                 <menuItem title="Window" id="aUF-d1-5bR">
                     <modifierMask key="keyEquivalentModifierMask"/>
                     <menu key="submenu" title="Window" systemMenu="window" id="Td7-aD-5lo">
@@ -675,9 +700,6 @@
                 <rect key="frame" x="0.0" y="0.0" width="480" height="360"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <customView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="uw9-50-27S">
-                        <rect key="frame" x="0.0" y="55" width="480" height="305"/>
-                    </customView>
                     <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="crQ-Cn-IAx">
                         <rect key="frame" x="200" y="-1" width="81" height="32"/>
                         <buttonCell key="cell" type="push" title="Button" bezelStyle="rounded" alignment="center" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="OPg-xI-gnA">
@@ -688,16 +710,24 @@
                             <action selector="revealMessage:" target="urg-Rz-8O7" id="EJo-VG-xuH"/>
                         </connections>
                     </button>
+                    <customView translatesAutoresizingMaskIntoConstraints="NO" id="uw9-50-27S">
+                        <rect key="frame" x="0.0" y="0.0" width="480" height="360"/>
+                    </customView>
                 </subviews>
+                <constraints>
+                    <constraint firstAttribute="trailing" secondItem="uw9-50-27S" secondAttribute="trailing" id="5Av-bO-6X5"/>
+                    <constraint firstAttribute="bottom" secondItem="uw9-50-27S" secondAttribute="bottom" id="Dvr-xo-zBh"/>
+                    <constraint firstItem="uw9-50-27S" firstAttribute="leading" secondItem="EiT-Mj-1SZ" secondAttribute="leading" id="sZU-AP-S6J"/>
+                    <constraint firstItem="uw9-50-27S" firstAttribute="top" secondItem="EiT-Mj-1SZ" secondAttribute="top" id="yJI-0X-lQG"/>
+                </constraints>
             </view>
             <point key="canvasLocation" x="-64" y="326"/>
         </window>
         <customObject id="urg-Rz-8O7" customClass="AppController">
             <connections>
-                <outlet property="firstViewController" destination="qB3-g8-bHp" id="rVN-wg-Q58"/>
+                <outlet property="appWindow" destination="QvC-M9-y7g" id="iNm-Ua-8za"/>
                 <outlet property="playerView" destination="uw9-50-27S" id="nrv-Or-IeY"/>
             </connections>
         </customObject>
-        <viewController id="qB3-g8-bHp" customClass="FirstViewController"/>
     </objects>
 </document>
