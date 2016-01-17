@@ -8,6 +8,7 @@
 
 #import "AppController.h"
 #import "IONPlayerControlView.h"
+#import "IONOpenGLView.h"
 
 #include "includes/client.h"
 #include "includes/opengl_cb.h"
@@ -28,11 +29,48 @@
 @end
 
 @implementation AppController
-
 - (void) createPlayerView {
     NSString * filename = @"/Users/Kirk/Movies/Wanderers.mp4";
     self.queue = dispatch_queue_create("mpv", DISPATCH_QUEUE_SERIAL);
+    
+    self.mpv = mpv_create();
+    if (!self.mpv) {
+        printf("failed creating context\n");
+        exit(1);
+    }
+    
+    check_error(mpv_set_option_string(self.mpv, "input-media-keys", "yes"));
+    // request important errors
+    check_error(mpv_request_log_messages(self.mpv, "warn"));
+    
+    check_error(mpv_initialize(self.mpv));
+    check_error(mpv_set_option_string(self.mpv, "vo", "opengl-cb"));
+    mpv_opengl_cb_context *mpvGL = mpv_get_sub_api(self.mpv, MPV_SUB_API_OPENGL_CB);
+    if (!mpvGL) {
+        puts("libmpv does not have the opengl-cb sub-API.");
+        exit(1);
+    }
+    // pass the mpvGL context to our view
+    self.appWindow.glView.mpvGL = mpvGL;
+    int r = mpv_opengl_cb_init_gl(mpvGL, NULL, get_proc_address, NULL);
+    if (r < 0) {
+        puts("gl init has failed.");
+        exit(1);
+    }
+    // must happen in main thread!
+    mpv_opengl_cb_set_update_callback(mpvGL, glupdate, (__bridge void *)self.appWindow.glView);
+
+    
+    // Deal with MPV in the background.
     dispatch_async(self.queue, ^{
+                // Register to be woken up whenever mpv generates new events.
+        mpv_set_wakeup_callback(self.mpv, wakeup, (__bridge void *)self);
+        // Load the indicated file
+        const char *cmd[] = {"loadfile", [filename UTF8String], NULL};
+        check_error(mpv_command(self.mpv, cmd));
+    });
+    
+/*    dispatch_async(self.queue, ^{
         
         self.mpv = mpv_create();
         if (!self.mpv) {
@@ -66,28 +104,31 @@
         const char *cmd[] = {"loadfile", [filename UTF8String], NULL};
         check_error(mpv_command(self.mpv, cmd));
 
-/*
+
         [[self.playerController view] removeFromSuperview];
         [self->wrapper addSubview:[self.playerController view] positioned:NSWindowAbove relativeTo:nil];
         
         CGSize wsize = [self.playerView bounds].size;
         NSRect frame2 = NSMakeRect(0, wsize.height-80, wsize.width, 80);
-        [[self.playerController view] setFrame:frame2];*/
+        [[self.playerController view] setFrame:frame2];
 
-    });
+    });*/
 }
 
 - (void) awakeFromNib{
-    NSRect frame = [[self.appWindow contentView] bounds];
-    self->wrapper = [[NSView alloc] initWithFrame:frame];
-    [self->wrapper setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
+//    NSRect frame = [[self.appWindow contentView] bounds];
+//    self->wrapper = [[NSView alloc] initWithFrame:frame];
+//    [self->wrapper setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
 //    [[self.appWindow contentView] addSubview:self.playerView];
-    [self.playerView addSubview:self->wrapper];
+//    [self.playerView addSubview:self->wrapper];
+    [self.appWindow initOGLView];
+    self.appWindow.pauseButton.target = self;
 //    [self->wrapper release];
 //    [self.playerView setFrame:frame];
 //    [self.playerView setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
 //    NSLog(@"%@", @"awake from nib");
     [self createPlayerView];
+    /*
     
     self.controllerView = [[IONPlayerControlView alloc] initWithFrame:NSMakeRect(0, 0, 440, 40)];
 
@@ -116,7 +157,8 @@
     
     [_controllerView.timeSlider setTarget:self];
     [_controllerView.timeSlider setAction:@selector(scrubberChanged:)];
-    [_controllerView.timeSlider setEnabled:NO];
+    [_controllerView.timeSlider setEnabled:NO];*/
+    
 }
 
 - (void) handleEvent:(mpv_event *)event
@@ -124,6 +166,7 @@
     switch (event->event_id) {
         case MPV_EVENT_SHUTDOWN: {
             mpv_detach_destroy(self.mpv);
+            mpv_opengl_cb_uninit_gl(self.appWindow.glView.mpvGL);
             self.mpv = NULL;
             printf("event: shutdown\n");
             break;
@@ -245,6 +288,34 @@
     
 }
 
+- (IBAction)togglePause:(id)sender
+{
+    int result;
+    if (mpv_get_property(self.mpv, "pause", MPV_FORMAT_FLAG, &result) >= 0)
+    {    printf("%s\n", result ? "true" : "false");
+    }
+
+    NSButton * button = (NSButton *) sender;
+    if (self.mpv) {
+        switch (button.state) {
+            case NSOffState:
+            {
+                int pause = 0;
+                mpv_set_property(self.mpv, "pause", MPV_FORMAT_FLAG, &pause);
+            }
+                break;
+            case NSOnState:
+            {
+                int pause = 1;
+                mpv_set_property(self.mpv, "pause", MPV_FORMAT_FLAG, &pause);
+            }
+                break;
+            default:
+                NSLog(@"This should never happen.");
+        }
+    }
+}
+
 - (void)playPauseToggle:(id)sender
 {
 //    if ([self.player rate] != 1.f) {
@@ -281,5 +352,21 @@ static void wakeup(void *context) {
     [ego readEvents];
 }
 
+static void * get_proc_address(void *ctx, const char *name) {
+    CFStringRef symbolName = CFStringCreateWithCString(kCFAllocatorDefault, name, kCFStringEncodingASCII);
+    void *addr = CFBundleGetFunctionPointerForName(CFBundleGetBundleWithIdentifier(CFSTR("com.apple.opengl")), symbolName);
+    CFRelease(symbolName);
+    return addr;
+}
+
+static void glupdate(void *ctx)
+{
+    IONOpenGLView *glView = (__bridge IONOpenGLView *)ctx;
+    // I'm still not sure what the best way to handle this is, but this
+    // works.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [glView drawRect];
+    });
+}
 
 @end

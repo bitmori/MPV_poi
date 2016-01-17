@@ -7,6 +7,7 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import "IONOpenGLWindow.h"
 
 @interface AppController : NSObject
 
@@ -14,7 +15,7 @@ typedef NS_ENUM(NSInteger, tagControlMenuItem) {
     kPlayTag = 10, kPauseTag, kStopTag
 };
 
-@property (weak) IBOutlet NSWindow *appWindow;
+@property (weak) IBOutlet IONOpenGLWindow *appWindow;
 @property (weak) IBOutlet NSView * playerView;
 
 //@property (copy) NSString * secretMessage;
