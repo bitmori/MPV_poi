@@ -12,6 +12,7 @@ DerivedData
 
 ##mpv dylib
 *.dylib
+*.tar.gz
 
 ## Various settings
 *.pbxuser

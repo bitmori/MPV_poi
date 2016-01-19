@@ -8,12 +8,14 @@
 
 #import <Cocoa/Cocoa.h>
 #import "IONOpenGLView.h"
-
+#import "IONPlayerControlView.h"
 
 @interface IONOpenGLWindow : NSWindow
 
 @property (strong, readonly) IONOpenGLView *glView;
 @property (strong, readonly) NSButton * pauseButton;
+
+@property (strong) IONPlayerControlView * controllerView;
 
 - (void)initOGLView;
 @end
