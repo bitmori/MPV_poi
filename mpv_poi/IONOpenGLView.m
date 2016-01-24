@@ -53,7 +53,6 @@
     [self drawRect];
 }
 
-
 //- (void)drawRect:(NSRect)dirtyRect {
 //    [super drawRect:dirtyRect];
 //    
